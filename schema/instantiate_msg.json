@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "description": "TODO: implement access control based on admins and users admins can instatiate and modify access lists, if mutable admins can execute users can query see cw1-whitelist",
+  "type": "object",
+  "required": [
+    "admins",
+    "mutable",
+    "users"
+  ],
+  "properties": {
+    "admins": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "mutable": {
+      "type": "boolean"
+    },
+    "users": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
