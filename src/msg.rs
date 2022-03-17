@@ -25,7 +25,7 @@ pub enum ExecuteMsg {
 pub struct CreateMsg {
     /// hex of geodata objectid (PK)
     pub id: String,
-    /// hex of account objectid (PK)
+    /// hex of account objectid
     pub account: String,
     /// hex-encoded hash of geodata (must be 32*2 = 64 chars)
     pub hash: String,
