@@ -21,9 +21,13 @@ juno version
 ```
 * run juno local node, deploy contract:
 ```sh
+# run juno local node:
 ./scripts/run_local_node.sh
+
 # in new terminal:
 ./scripts/optimize.sh
+# builds to artifacts/geodata_anchor.wasm
+
 ./scripts/local_deploy.sh
 # this will echo CONTRACT_ADDRESS, created dynamically from local juno instance.
 # $CONTRACT_ADDRESS must be applied to geodata-rest/src/config/default.json before starting rest layer
