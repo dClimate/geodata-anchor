@@ -29,9 +29,26 @@ junod tx wasm instantiate $CODE_ID \
   --from sample-test-keyname \
   --chain-id testing \
   -b block \
-  --output json \
-  -y | jq -r  .logs[0].events[0].attributes[0].value \
+  --output json -y | jq -r '.logs[0].events[0].attributes[0].value' \
 )
 echo "CONTRACT_ADDRESS: $CONTRACT_ADDRESS"
 
 junod query wasm list-contract-by-code $CODE_ID
+
+CREATE=$( \
+junod tx wasm execute $CONTRACT_ADDRESS \
+  '{"create":{"id":"012345678901234567890123","hash":"bdda97435bea603cd428e8112cec883cbd492d23bdda97435bea603cd428e811","account":"acct1","created":"1"}}' \
+  --from juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y \
+  --chain-id testing \
+  --gas-prices 0.1ujunox --gas auto --gas-adjustment 1.3 -b block  \
+  --output json -y | jq -r '.logs[0].events[0].attributes[0].value' \
+)
+echo "CREATE: $CREATE"
+
+DETAILS=$( \
+junod query wasm contract-state smart $CONTRACT_ADDRESS \
+  '{"details":{"id":"012345678901234567890123"}}' \
+  --chain-id testing \
+  --output json | jq -r '.data' \
+)
+echo "DETAILS: $DETAILS"
