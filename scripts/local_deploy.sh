@@ -28,6 +28,7 @@ junod tx wasm instantiate $CODE_ID \
   --label "CW1 example contract" \
   --from sample-test-keyname \
   --chain-id testing \
+  --no-admin \
   -b block \
   --output json -y | jq -r '.logs[0].events[0].attributes[0].value' \
 )
@@ -41,7 +42,7 @@ junod tx wasm execute $CONTRACT_ADDRESS \
   --from juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y \
   --chain-id testing \
   --gas-prices 0.1ujunox --gas auto --gas-adjustment 1.3 -b block  \
-  --output json -y | jq -r '.logs[0].events[0].attributes[0].value' \
+  --output json -y | jq -r '.logs[0].events[-1]' \
 )
 echo "CREATE: $CREATE"
 

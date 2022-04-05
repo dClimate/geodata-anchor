@@ -15,9 +15,14 @@ cargo schema
 sudo apt-get install make build-essential gcc git jq chrony -y
 git clone https://github.com/CosmosContracts/juno.git && cd juno
 git fetch --tags
-git checkout v2.1.0
-make install
-juno version
+git checkout v2.3.1
+make build && make install
+junod version
+```
+* [create default test account](https://docs.junonetwork.io/smart-contracts-and-junod-development/junod-local-dev-setup)
+```sh
+junod keys add sample-test-keyname --recover
+# clip hire initial neck maid actor venue client foam budget lock catalog sweet steak waste crater broccoli pipe steak sister coyote moment obvious choose
 ```
 * run juno local node, deploy contract:
 ```sh
