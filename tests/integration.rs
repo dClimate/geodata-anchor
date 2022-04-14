@@ -134,9 +134,8 @@ async fn test_workflow() {
         users: vec![TEST_ACCOUNT.to_string()],
         mutable: true,
     };
-    // let data = r#"{"admins":["juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y"],"users":["juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y"],"mutable":false}"#;
+ 
     let instantiate_msg_json = serde_json::to_string(&instantiate_msg).unwrap();
-
     let msg_instantiate = MsgInstantiateContract {
         sender: sender_account_id,
         admin: None::<AccountId>,
@@ -176,22 +175,4 @@ async fn test_workflow() {
     assert_eq!(&auth_info, &tx.auth_info);
     info!("instantiate succeeded");
     dev::exec_docker_command("kill", &[&container_id]);
-}
-pub fn extract_events(
-    events: &HashMap<String, Vec<String>>,
-    action_string: &str,
-) -> Result<(), Error> {
-    if let Some(message_action) = events.get("message.action") {
-        if message_action.contains(&action_string.to_owned()) {
-            return Ok(());
-        }
-        return Err(Error::new(
-            ErrorKind::Other,
-            format!("message.action does not contain {}", action_string),
-        ));
-    }
-    Err(Error::new(
-        ErrorKind::Other,
-        format!("incorrect {}", action_string),
-    ))
 }
