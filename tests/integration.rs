@@ -4,15 +4,20 @@
 use bip32::XPrv;
 use bip39::{Language, Mnemonic, Seed};
 use cosmrs::{
-    cosmwasm::{AccessConfig, MsgStoreCode},
+    cosmwasm::{AccessConfig, MsgExecuteContract, MsgInstantiateContract, MsgStoreCode},
     crypto::secp256k1,
     tx::{self, AccountNumber, Fee, Msg, SignDoc, SignerInfo},
-    Coin,
+    AccountId, Coin,
 };
-use std::fs::File;
+use geodata_anchor::msg::{CreateMsg, ExecuteMsg, InstantiateMsg, QueryMsg};
 use std::io::prelude::*;
-use std::{panic, str};
-use tracing::info;
+use std::str;
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{Error, ErrorKind},
+};
+use tracing::{error, info};
 
 /// Chain ID to use for tests
 const CHAIN_ID: &str = "testing";
@@ -32,6 +37,9 @@ const DENOM: &str = "ujunox";
 
 /// Example memo
 const MEMO: &str = "test memo";
+
+const TEST_ACCOUNT: &str = "juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y";
+
 mod dev;
 use tendermint_rpc as rpc;
 
@@ -52,10 +60,10 @@ async fn test_workflow() {
         &format!("{}:{}", RPC_PORT2, RPC_PORT2),
         "ghcr.io/cosmoscontracts/juno:v2.3.1",
         "./setup_and_run.sh",
-        "juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y",
+        TEST_ACCOUNT,
     ];
     let container_id = dev::exec_docker_command("run", docker_args);
-    
+
     // set up private key, public key and account from juno built-in test account
     let mnemonic = Mnemonic::from_phrase("clip hire initial neck maid actor venue client foam budget lock catalog sweet steak waste crater broccoli pipe steak sister coyote moment obvious choose", Language::English).unwrap();
     let seed = Seed::new(&mnemonic, "");
@@ -77,7 +85,7 @@ async fn test_workflow() {
     contract_code.read_to_end(&mut buffer).unwrap();
 
     let msg_store = MsgStoreCode {
-        sender: sender_account_id,
+        sender: sender_account_id.clone(),
         wasm_byte_code: buffer,
         instantiate_permission: None::<AccessConfig>,
     }
@@ -87,12 +95,12 @@ async fn test_workflow() {
     let chain_id = CHAIN_ID.parse().unwrap();
     let sequence_number = 0;
     let gas = 20_000_000;
-    let fee = Fee::from_amount_and_gas(amount, gas);
+    let fee = Fee::from_amount_and_gas(amount.clone(), gas);
     let timeout_height = 9001u16;
 
     let tx_body = tx::Body::new(vec![msg_store], MEMO, timeout_height);
     let auth_info =
-        SignerInfo::single_direct(Some(sender_public_key), sequence_number).auth_info(fee);
+        SignerInfo::single_direct(Some(sender_public_key), sequence_number).auth_info(fee.clone());
     let sign_doc = SignDoc::new(&tx_body, &auth_info, &chain_id, ACCOUNT_NUMBER).unwrap();
     let tx_raw = sign_doc.sign(&sender_private_key).unwrap();
 
@@ -100,19 +108,90 @@ async fn test_workflow() {
     let rpc_client = rpc::HttpClient::new(rpc_address.as_str()).unwrap();
     dev::poll_for_first_block(&rpc_client).await;
 
-    let tx_commit_response = tx_raw.broadcast_commit(&rpc_client).await.unwrap();
+    let tx_commit_response: rpc::endpoint::broadcast::tx_commit::Response =
+        tx_raw.broadcast_commit(&rpc_client).await.unwrap();
 
     if tx_commit_response.check_tx.code.is_err() {
-        panic!("check_tx failed: {:?}", tx_commit_response.check_tx);
+        error!("check_tx failed: {:?}", tx_commit_response.check_tx);
     }
 
     if tx_commit_response.deliver_tx.code.is_err() {
-        panic!("deliver_tx failed: {:?}", tx_commit_response.deliver_tx);
+        error!("deliver_tx failed: {:?}", tx_commit_response.deliver_tx);
     }
-    let code = tx_commit_response.deliver_tx.code.value();
+    // let result: rpc::endpoint::broadcast::tx_commit::TxResult = tx_commit_response.deliver_tx;
+    info!(
+        "store code , TxResult events: {:?}",
+        tx_commit_response.deliver_tx.events
+    );
     let tx: tx::Tx = dev::poll_for_tx(&rpc_client, tx_commit_response.hash).await;
     assert_eq!(&tx_body, &tx.body);
     assert_eq!(&auth_info, &tx.auth_info);
-    info!("store code succeeded, tx code: {:?}", code);
+    info!("store code succeeded");
+
+    // instantiate
+    let instantiate_msg = InstantiateMsg {
+        admins: vec![TEST_ACCOUNT.to_string()],
+        users: vec![TEST_ACCOUNT.to_string()],
+        mutable: true,
+    };
+    // let data = r#"{"admins":["juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y"],"users":["juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y"],"mutable":false}"#;
+    let instantiate_msg_json = serde_json::to_string(&instantiate_msg).unwrap();
+
+    let msg_instantiate = MsgInstantiateContract {
+        sender: sender_account_id,
+        admin: None::<AccountId>,
+        code_id: 1,
+        label: Some(MEMO.to_string()),
+        msg: instantiate_msg_json.as_bytes().to_vec(),
+        funds: vec![amount],
+    }
+    .to_any()
+    .unwrap();
+
+    let tx_body = tx::Body::new(vec![msg_instantiate], MEMO, timeout_height);
+    let auth_info =
+        SignerInfo::single_direct(Some(sender_public_key), sequence_number + 1).auth_info(fee);
+    let sign_doc = SignDoc::new(&tx_body, &auth_info, &chain_id, ACCOUNT_NUMBER).unwrap();
+    let tx_raw = sign_doc.sign(&sender_private_key).unwrap();
+
+    let tx_commit_response: rpc::endpoint::broadcast::tx_commit::Response =
+        tx_raw.broadcast_commit(&rpc_client).await.unwrap();
+
+    if tx_commit_response.check_tx.code.is_err() {
+        error!("check_tx failed: {:?}", tx_commit_response.check_tx);
+    }
+
+    if tx_commit_response.deliver_tx.code.is_err() {
+        error!("deliver_tx failed: {:?}", tx_commit_response.deliver_tx);
+    }
+
+    for event in tx_commit_response.deliver_tx.events {
+        if event.type_str == "instantiate" {
+            info!("instantiate: contract address: {:?}", event.attributes[0].value.to_string());
+        }
+    }
+
+    let tx: tx::Tx = dev::poll_for_tx(&rpc_client, tx_commit_response.hash).await;
+    assert_eq!(&tx_body, &tx.body);
+    assert_eq!(&auth_info, &tx.auth_info);
+    info!("instantiate succeeded");
     dev::exec_docker_command("kill", &[&container_id]);
+}
+pub fn extract_events(
+    events: &HashMap<String, Vec<String>>,
+    action_string: &str,
+) -> Result<(), Error> {
+    if let Some(message_action) = events.get("message.action") {
+        if message_action.contains(&action_string.to_owned()) {
+            return Ok(());
+        }
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!("message.action does not contain {}", action_string),
+        ));
+    }
+    Err(Error::new(
+        ErrorKind::Other,
+        format!("incorrect {}", action_string),
+    ))
 }
