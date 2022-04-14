@@ -10,13 +10,9 @@ use cosmrs::{
     AccountId, Coin,
 };
 use geodata_anchor::msg::{CreateMsg, ExecuteMsg, InstantiateMsg, QueryMsg};
+use std::fs::File;
 use std::io::prelude::*;
 use std::str;
-use std::{
-    collections::HashMap,
-    fs::File,
-    io::{Error, ErrorKind},
-};
 use tracing::{error, info};
 
 /// Chain ID to use for tests
@@ -134,7 +130,7 @@ async fn test_workflow() {
         users: vec![TEST_ACCOUNT.to_string()],
         mutable: true,
     };
- 
+
     let instantiate_msg_json = serde_json::to_string(&instantiate_msg).unwrap();
     let msg_instantiate = MsgInstantiateContract {
         sender: sender_account_id,
@@ -164,11 +160,14 @@ async fn test_workflow() {
         error!("deliver_tx failed: {:?}", tx_commit_response.deliver_tx);
     }
 
+    let mut contract_address: String = "invalid".to_string();
     for event in tx_commit_response.deliver_tx.events {
         if event.type_str == "instantiate" {
-            info!("instantiate: contract address: {:?}", event.attributes[0].value.to_string());
+            contract_address = event.attributes[0].value.to_string();
+            break;
         }
     }
+    info!("instantiate: contract address: {:?}", contract_address);
 
     let tx: tx::Tx = dev::poll_for_tx(&rpc_client, tx_commit_response.hash).await;
     assert_eq!(&tx_body, &tx.body);
