@@ -5,7 +5,6 @@ use cosmwasm_std::{
     StdResult,
 };
 
-
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
