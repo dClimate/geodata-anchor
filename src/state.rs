@@ -5,11 +5,20 @@ use cosmwasm_std::{Addr, Binary, Order, StdResult, Storage, Timestamp};
 use cw_storage_plus::{Bound, Map};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct Validation {
+    pub account: String,
+    pub hash: Binary,
+    pub source: Addr,
+    pub created: Timestamp,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct Anchor {
     pub account: String,
     pub hash: Binary,
     pub source: Addr,
     pub created: Timestamp,
+    pub validations: Vec<Validation>,
 }
 
 pub const ANCHORS: Map<&str, Anchor> = Map::new("anchors");
@@ -46,6 +55,7 @@ mod tests {
             source: Addr::unchecked("source"),
             hash: Binary("hash".into()),
             created: Default::default(),
+            validations: vec![],
         }
     }
 

@@ -10,13 +10,15 @@ use cosmrs::{
     tx::{self, AccountNumber, Fee, Msg, SignDoc, SignerInfo},
     AccountId, Coin,
 };
+
 use cosmwasm_std::Timestamp;
-use geodata_anchor::msg::{CreateMsg, ExecuteMsg, InstantiateMsg, QueryMsg};
+use geodata_anchor::msg::{CreateMsg, ExecuteMsg, InstantiateMsg, ValidateMsg};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::prelude::*;
 use std::str;
 use std::str::FromStr;
+use chrono::Utc;
 use tracing::{error, info};
 
 /// Chain ID to use for tests
@@ -148,8 +150,8 @@ async fn test_workflow() {
     .unwrap();
 
     let tx_body = tx::Body::new(vec![msg_instantiate], MEMO, TIMEOUT_HEIGHT);
-    let auth_info =
-        SignerInfo::single_direct(Some(sender_public_key), sequence_number + 1).auth_info(fee.clone());
+    let auth_info = SignerInfo::single_direct(Some(sender_public_key), sequence_number + 1)
+        .auth_info(fee.clone());
     let sign_doc = SignDoc::new(&tx_body, &auth_info, &chain_id, ACCOUNT_NUMBER).unwrap();
     let tx_raw = sign_doc.sign(&sender_private_key).unwrap();
 
@@ -183,26 +185,30 @@ async fn test_workflow() {
         &hex::decode(hex::encode(b"This is a string, 32 bytes long.")).unwrap(),
     ));
 
+    let geodata_id = ObjectId::new().to_hex().to_string();
+
     let create_msg = CreateMsg {
-        id: ObjectId::new().to_hex().to_string(),
+        id: geodata_id.clone(),
         account: ObjectId::new().to_hex().to_string(),
-        hash,
+        hash: hash.clone(),
         created: Timestamp::default(),
     };
-    let execute_msg = ExecuteMsg::Create(create_msg);
-    let execute_msg_json = serde_json::to_string(&execute_msg).unwrap();
+
+    let create_execute_msg = ExecuteMsg::Create(create_msg);
+    let create_execute_msg_json = serde_json::to_string(&create_execute_msg).unwrap();
     let contract_account_id = AccountId::from_str(&contract_address).unwrap();
     let msg_execute = MsgExecuteContract {
-        sender: sender_account_id,
-        contract: contract_account_id,
-        msg: execute_msg_json.as_bytes().to_vec(),
+        sender: sender_account_id.clone(),
+        contract: contract_account_id.clone(),
+        msg: create_execute_msg_json.as_bytes().to_vec(),
         funds: vec![amount.clone()],
     }
     .to_any()
     .unwrap();
+
     let tx_body = tx::Body::new(vec![msg_execute], MEMO.to_string(), TIMEOUT_HEIGHT);
-    let auth_info =
-        SignerInfo::single_direct(Some(sender_public_key), sequence_number + 2).auth_info(fee);
+    let auth_info = SignerInfo::single_direct(Some(sender_public_key), sequence_number + 2)
+        .auth_info(fee.clone());
     let sign_doc = SignDoc::new(&tx_body, &auth_info, &chain_id, ACCOUNT_NUMBER).unwrap();
     let tx_raw = sign_doc.sign(&sender_private_key).unwrap();
 
@@ -216,7 +222,45 @@ async fn test_workflow() {
     if tx_commit_response.deliver_tx.code.is_err() {
         error!("deliver_tx failed: {:?}", tx_commit_response.deliver_tx);
     }
-    
+
+    let tx: tx::Tx = dev::poll_for_tx(&rpc_client, tx_commit_response.hash).await;
+    assert_eq!(&tx_body, &tx.body);
+    assert_eq!(&auth_info, &tx.auth_info);
+
+    // execute/validate
+    let validate_msg = ValidateMsg {
+        id: geodata_id.clone(),
+        account: ObjectId::new().to_hex().to_string(),
+        hash: hash.clone(),
+        created: Timestamp::from_nanos(Utc::now().timestamp_nanos() as u64),
+    };
+    let validate_execute_msg = ExecuteMsg::Validate(validate_msg);
+    let validate_execute_msg_json = serde_json::to_string(&validate_execute_msg).unwrap();
+    let msg_execute = MsgExecuteContract {
+        sender: sender_account_id.clone(),
+        contract: contract_account_id.clone(),
+        msg: validate_execute_msg_json.as_bytes().to_vec(),
+        funds: vec![amount.clone()],
+    }
+    .to_any()
+    .unwrap();
+    let tx_body = tx::Body::new(vec![msg_execute], MEMO.to_string(), TIMEOUT_HEIGHT);
+    let auth_info =
+        SignerInfo::single_direct(Some(sender_public_key), sequence_number + 3).auth_info(fee);
+    let sign_doc = SignDoc::new(&tx_body, &auth_info, &chain_id, ACCOUNT_NUMBER).unwrap();
+    let tx_raw = sign_doc.sign(&sender_private_key).unwrap();
+
+    let tx_commit_response: rpc::endpoint::broadcast::tx_commit::Response =
+        tx_raw.broadcast_commit(&rpc_client).await.unwrap();
+
+    if tx_commit_response.check_tx.code.is_err() {
+        error!("check_tx failed: {:?}", tx_commit_response.check_tx);
+    }
+
+    if tx_commit_response.deliver_tx.code.is_err() {
+        error!("deliver_tx failed: {:?}", tx_commit_response.deliver_tx);
+    }
+
     let tx: tx::Tx = dev::poll_for_tx(&rpc_client, tx_commit_response.hash).await;
     assert_eq!(&tx_body, &tx.body);
     assert_eq!(&auth_info, &tx.auth_info);

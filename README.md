@@ -3,12 +3,19 @@
 Provides a cosmwasm anchor for geodata object with its hash
 ### Requirements
 * [Rust](https://www.rust-lang.org/tools/install)
+* [Docker](https://www.docker.com/) (for integration test)
 ### development
+* [juno dev setup](https://docs.junonetwork.io/smart-contracts-and-junod-development/getting-started)
+
+* run tests:
+```sh
 cargo watch -x test -w src
+```
 
 ### schemas:
+```sh
 cargo schema
-
+```
 ### scripts, streamlined run, optimize, and deploy:
 * build juno:
 ```sh
@@ -34,9 +41,8 @@ junod keys add sample-test-keyname --recover
 # builds to artifacts/geodata_anchor.wasm
 
 ./scripts/local_deploy.sh
-# this will echo CONTRACT_ADDRESS, created dynamically from local juno instance.
-# $CONTRACT_ADDRESS must be applied to geodata-rest/src/config/default.json before starting rest layer
+# this will access all endpoints from a dynamically from local juno instance.
+
 ```
 ### TODO:
 * add access control, as cw1-whitelist
-* implement add QueryMsgValid {id: String, hash: String}

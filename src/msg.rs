@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::Timestamp;
 
+use crate::state::Validation;
+
 /// TODO: implement access control based on admins and users
 /// admins can instatiate and modify access lists, if mutable
 /// admins can execute
@@ -19,6 +21,7 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     Create(CreateMsg),
+    Validate(ValidateMsg),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -30,6 +33,17 @@ pub struct CreateMsg {
     /// hex-encoded hash of geodata (must be 32*2 = 64 chars)
     pub hash: String,
     /// geodata created
+    pub created: Timestamp,
+}
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ValidateMsg {
+    /// hex of geodata objectid (PK)
+    pub id: String,
+    /// hex of account objectid
+    pub account: String,
+    /// hex-encoded hash of geodata (must be 32*2 = 64 chars)
+    pub hash: String,
+    /// validation created
     pub created: Timestamp,
 }
 
@@ -54,5 +68,5 @@ pub struct DetailsResponse {
     pub hash: String,
     pub source: String,
     pub created: Timestamp,
+    pub validations: Vec<Validation>,
 }
-

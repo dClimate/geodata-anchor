@@ -17,4 +17,10 @@ pub enum ContractError {
 
     #[error("Anchor already exists")]
     AlreadyExists,
+
+    #[error("Anchor not found")]
+    NotFound,
+
+    #[error("Hashes do not match")]
+    HashesDonotMatch,
 }

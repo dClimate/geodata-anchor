@@ -256,8 +256,7 @@ checksum = "5827cebf4670468b8772dd191856768aedcb1b0278a04f989f7766351917b9dc"
 [[package]]
 name = "cosmos-sdk-proto"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60e0c62ee1728512be390ff6eb5471f674e846de06feba800c8e926583878cf0"
+source = "git+https://github.com/tsondru/cosmos-rust#5463e2b1b03f538fd9df78fb4e51fadfb7d8785e"
 dependencies = [
  "prost",
  "prost-types",
@@ -266,22 +265,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "cosmos-sdk-proto"
-version = "0.10.0"
-source = "git+https://github.com/tsondru/cosmos-rust#5463e2b1b03f538fd9df78fb4e51fadfb7d8785e"
-dependencies = [
- "prost",
- "prost-types",
- "tendermint-proto",
-]
-
-[[package]]
 name = "cosmrs"
 version = "0.5.1"
 source = "git+https://github.com/tsondru/cosmos-rust#5463e2b1b03f538fd9df78fb4e51fadfb7d8785e"
 dependencies = [
  "bip32",
- "cosmos-sdk-proto 0.10.0 (git+https://github.com/tsondru/cosmos-rust)",
+ "cosmos-sdk-proto",
  "ecdsa 0.13.4",
  "eyre",
  "getrandom 0.2.6",
@@ -831,7 +820,7 @@ dependencies = [
  "bip32",
  "bson",
  "chrono",
- "cosmos-sdk-proto 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cosmos-sdk-proto",
  "cosmrs",
  "cosmwasm-schema",
  "cosmwasm-std",

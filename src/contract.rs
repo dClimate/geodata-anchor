@@ -1,18 +1,13 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult,
-};
-
+use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{
-    is_valid_id, CreateMsg, DetailsResponse, ExecuteMsg, InstantiateMsg,
-    QueryMsg,
+    is_valid_id, CreateMsg, DetailsResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ValidateMsg,
 };
-use crate::state::{Anchor, ANCHORS};
+use crate::state::{Anchor, Validation, ANCHORS};
 
 // Version info, for migration info
 const CONTRACT_NAME: &str = "crates.io:geodata-anchor";
@@ -38,9 +33,8 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Create(msg) => {
-            execute_create(deps, env, info, msg)
-        }
+        ExecuteMsg::Create(msg) => execute_create(deps, env, info, msg),
+        ExecuteMsg::Validate(msg) => execute_validate(deps, env, info, msg),
     }
 }
 
@@ -61,6 +55,7 @@ pub fn execute_create(
         hash: Binary(hash),
         source: info.sender,
         created: msg.created,
+        validations: vec![],
     };
 
     // Try to store it, fail if the id already exists
@@ -75,6 +70,51 @@ pub fn execute_create(
         .add_attribute("hash", msg.hash)
         .add_attribute("account", msg.account);
     Ok(res)
+}
+
+pub fn execute_validate(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    msg: ValidateMsg,
+) -> Result<Response, ContractError> {
+    if !is_valid_id(&msg.id) {
+        return Err(ContractError::InvalidId {});
+    }
+
+    // Try to load, fail if the id doesn't exist
+    // check hash match, fail if not
+    match ANCHORS.load(deps.storage, &msg.id) {
+        Ok(mut anchor) => {
+            // if anchor.account != msg.account {
+            //     return Err(ContractError::NotAuthorized {});
+            // }
+            let hash = parse_hex_32(&msg.hash)?;
+            if anchor.hash != hash {
+                return Err(ContractError::HashesDonotMatch {});
+            }
+
+            let validation = Validation {
+                account: msg.account,
+                hash: Binary(hash),
+                source: info.sender,
+                created: msg.created,
+            };
+            anchor.validations.push(validation);
+
+            ANCHORS.update(deps.storage, &msg.id, |existing| match existing {
+                Some(_) => Ok(anchor),
+                None => Err(ContractError::AlreadyExists {}),
+            })?;
+
+            let res = Response::new()
+                .add_attribute("action", "validate")
+                .add_attribute("id", msg.id)
+                .add_attribute("validated", "true");
+            return Ok(res);
+        }
+        Err(_e) => Err(ContractError::NotFound {}),
+    }
 }
 
 fn parse_hex_32(data: &str) -> Result<Vec<u8>, ContractError> {
@@ -106,17 +146,19 @@ fn query_details(deps: Deps, id: String) -> StdResult<DetailsResponse> {
         hash: hex::encode(anchor.hash.as_slice()),
         source: anchor.source.into(),
         created: anchor.created.into(),
+        validations: anchor.validations,
     };
     Ok(details)
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::state::all_anchor_ids;
+    use chrono::Utc;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary, Timestamp};
-    use crate::state::all_anchor_ids;
     use sha2::{Digest, Sha256};
-    use super::*;
 
     fn preimage() -> String {
         hex::encode(b"This is a string, 32 bytes long.")
@@ -147,7 +189,6 @@ mod tests {
         instantiate_msg
     }
 
-
     #[test]
     fn test_instantiate() {
         let mut deps = mock_dependencies();
@@ -175,7 +216,7 @@ mod tests {
                 id: id.to_string(),
                 hash: real_hash(),
                 account: String::from("acct0001"),
-                created: Timestamp::from_seconds(1),
+                created: Timestamp::from_nanos(Utc::now().timestamp_nanos() as u64),
             };
             let err = execute(
                 deps.as_mut(),
@@ -193,7 +234,7 @@ mod tests {
             id: valid_id.clone(),
             hash: "bu115h17".to_string(),
             account: String::from("acct0001"),
-            created: Timestamp::from_seconds(1),
+            created: Timestamp::from_nanos(Utc::now().timestamp_nanos() as u64),
         };
         let err = execute(deps.as_mut(), mock_env(), info, ExecuteMsg::Create(create)).unwrap_err();
         assert_eq!(
@@ -207,9 +248,15 @@ mod tests {
             id: valid_id.clone(),
             hash: real_hash(),
             account: String::from("acct0001"),
-            created: Timestamp::from_seconds(1),
+            created: Timestamp::from_nanos(Utc::now().timestamp_nanos() as u64),
         };
-        let res = execute(deps.as_mut(), mock_env(), info.clone(), ExecuteMsg::Create(create)).unwrap();
+        let res = execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Create(create),
+        )
+        .unwrap();
         assert_eq!(0, res.messages.len());
         assert_eq!(("action", "create"), res.attributes[0]);
 
@@ -218,7 +265,7 @@ mod tests {
             id: valid_id.clone(),
             hash: real_hash(),
             account: String::from("acct0001"),
-            created: Timestamp::from_seconds(1),
+            created: Timestamp::from_nanos(Utc::now().timestamp_nanos() as u64),
         };
         let err = execute(deps.as_mut(), mock_env(), info, ExecuteMsg::Create(create)).unwrap_err();
         assert_eq!(err, ContractError::AlreadyExists {});
@@ -270,9 +317,7 @@ mod tests {
         let ids = all_anchor_ids(deps.as_mut().storage, None, 10).unwrap();
         assert_eq!(2, ids.len());
         // Get the details for the first anchor id
-        let query_msg = QueryMsg::Details {
-            id: ids[0].clone(),
-        };
+        let query_msg = QueryMsg::Details { id: ids[0].clone() };
         let res: DetailsResponse =
             from_binary(&query(deps.as_ref(), mock_env(), query_msg).unwrap()).unwrap();
         assert_eq!(
@@ -283,13 +328,12 @@ mod tests {
                 account: create1.account,
                 source: sender1,
                 created: create1.created,
+                validations: vec![],
             }
         );
 
         // Get the details for the second anchor id
-        let query_msg = QueryMsg::Details {
-            id: ids[1].clone(),
-        };
+        let query_msg = QueryMsg::Details { id: ids[1].clone() };
         let res: DetailsResponse =
             from_binary(&query(deps.as_ref(), mock_env(), query_msg).unwrap()).unwrap();
         assert_eq!(
@@ -300,7 +344,80 @@ mod tests {
                 account: create2.account,
                 source: sender2,
                 created: create2.created,
+                validations: vec![],
             }
         );
+    }
+    #[test]
+    fn test_validate() {
+        let mut deps = mock_dependencies();
+
+        let info = mock_info("anyone", &[]);
+        instantiate(deps.as_mut(), mock_env(), info, mock_instantiate_msg()).unwrap();
+
+        let sender1 = String::from("sender0001");
+        let valid_id1 = String::from("012345678901234567890123");
+
+        // Create 1 anchors
+        let info = mock_info(&sender1, &[]);
+        let create1 = CreateMsg {
+            id: valid_id1.clone(),
+            hash: custom_hash(1),
+            account: String::from("acct0001"),
+            created: Timestamp::from_seconds(1),
+        };
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            ExecuteMsg::Create(create1.clone()),
+        )
+        .unwrap();
+
+        let ids = all_anchor_ids(deps.as_mut().storage, None, 10).unwrap();
+        assert_eq!(1, ids.len());
+        // Get the details before validation
+        let query_msg = QueryMsg::Details { id: ids[0].clone() };
+        let res: DetailsResponse =
+            from_binary(&query(deps.as_ref(), mock_env(), query_msg).unwrap()).unwrap();
+        assert_eq!(
+            res,
+            DetailsResponse {
+                id: create1.id,
+                hash: create1.hash,
+                account: create1.account,
+                source: sender1,
+                created: create1.created,
+                validations: vec![],
+            }
+        );
+
+        let validate1 = ValidateMsg {
+            id: valid_id1,
+            hash: custom_hash(1),
+            account: String::from("acct0001"),
+            created: Timestamp::from_seconds(1),
+        };
+        let res: Response = execute(
+            deps.as_mut(),
+            mock_env(),
+            info,
+            ExecuteMsg::Validate(validate1.clone()),
+        )
+        .unwrap();
+
+        let mut validated: String = "invalid".to_string();
+        for attribute in res.attributes {
+            if attribute.key == "validated" {
+                validated = attribute.value.to_string();
+                break;
+            }
+        }
+        assert_eq!(validated, "true");
+        // Get the details after validation
+        let query_msg = QueryMsg::Details { id: ids[0].clone() };
+        let res: DetailsResponse =
+            from_binary(&query(deps.as_ref(), mock_env(), query_msg).unwrap()).unwrap();
+        assert_eq!(res.validations.len(), 1);
     }
 }
