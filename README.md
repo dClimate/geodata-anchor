@@ -9,9 +9,10 @@ Provides a cosmwasm anchor for geodata object with its hash
 
 * run tests:
 ```sh
+# builds to artifacts/geodata_anchor.wasm
+./scripts/optimize.sh
 cargo watch -x test -w src
 ```
-
 ### schemas:
 ```sh
 cargo schema
