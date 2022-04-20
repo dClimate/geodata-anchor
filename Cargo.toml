@@ -24,7 +24,7 @@ sha2 = "0.10"
 
 [dev-dependencies]
 cosmwasm-schema = { version = "1.0.0-beta8" }
-# pending https://github.com/cosmos/cosmos-rust/pull/202
+# snapshots, pending next release of cosmrs
 cosmrs = { git = "https://github.com/tsondru/cosmos-rust", features = ["cosmwasm", "rpc", "bip32"] }
 # cosmrs = { version = "0.5", features = ["cosmwasm", "rpc", "bip32"] }
 cosmos-sdk-proto = { git = "https://github.com/tsondru/cosmos-rust", features = ["grpc"] }

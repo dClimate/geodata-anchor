@@ -2,8 +2,8 @@
 
 Provides a cosmwasm anchor for geodata object with its hash
 ### Requirements
-* [Rust](https://www.rust-lang.org/tools/install)
-* [Docker](https://www.docker.com/) (for integration test)
+- [Rust](https://www.rust-lang.org/tools/install)
+- [Docker](https://www.docker.com/) (for integration test)
 ### development
 * [juno dev setup](https://docs.junonetwork.io/smart-contracts-and-junod-development/getting-started)
 
@@ -11,7 +11,7 @@ Provides a cosmwasm anchor for geodata object with its hash
 ```sh
 # builds to artifacts/geodata_anchor.wasm
 ./scripts/optimize.sh
-cargo watch -x test -w src
+cargo test
 ```
 ### schemas:
 ```sh

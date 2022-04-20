@@ -256,7 +256,7 @@ checksum = "5827cebf4670468b8772dd191856768aedcb1b0278a04f989f7766351917b9dc"
 [[package]]
 name = "cosmos-sdk-proto"
 version = "0.10.0"
-source = "git+https://github.com/tsondru/cosmos-rust#5463e2b1b03f538fd9df78fb4e51fadfb7d8785e"
+source = "git+https://github.com/tsondru/cosmos-rust#b9c9caa3719c3791c5afd016e0c4aa05b1bf1fdc"
 dependencies = [
  "prost",
  "prost-types",
@@ -267,7 +267,7 @@ dependencies = [
 [[package]]
 name = "cosmrs"
 version = "0.5.1"
-source = "git+https://github.com/tsondru/cosmos-rust#5463e2b1b03f538fd9df78fb4e51fadfb7d8785e"
+source = "git+https://github.com/tsondru/cosmos-rust#b9c9caa3719c3791c5afd016e0c4aa05b1bf1fdc"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",
@@ -1189,9 +1189,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.123"
+version = "0.2.124"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb691a747a7ab48abc15c5b42066eaafde10dc427e3b6ee2a1cf43db04c763bd"
+checksum = "21a41fed9d98f27ab1c6d161da622a4fa35e8a54a8adc24bbf3ddd0ef70b0e50"
 
 [[package]]
 name = "log"
