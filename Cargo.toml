@@ -1,6 +1,7 @@
 [package]
 name = "geodata-anchor"
 version = "0.1.0"
+authors = ["tsondru <k.tsondru.tarchin@pm.me>"]
 edition = "2018"
 
 [lib]
@@ -24,11 +25,8 @@ sha2 = "0.10"
 
 [dev-dependencies]
 cosmwasm-schema = { version = "1.0.0-beta8" }
-# snapshots, pending next release of cosmrs
-cosmrs = { git = "https://github.com/tsondru/cosmos-rust", features = ["cosmwasm", "rpc", "bip32"] }
-# cosmrs = { version = "0.5", features = ["cosmwasm", "rpc", "bip32"] }
-cosmos-sdk-proto = { git = "https://github.com/tsondru/cosmos-rust", features = ["grpc"] }
-# cosmos-sdk-proto = { version = "0.10", features = ["grpc"] }
+cosmrs = { version = "0.6", features = ["cosmwasm", "rpc", "bip32"] }
+cosmos-sdk-proto = { version = "0.11", features = ["grpc"] }
 tendermint = { version = "=0.23" }
 prost = "0.9"
 prost-types = "0.9"
