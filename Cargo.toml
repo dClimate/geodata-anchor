@@ -15,7 +15,7 @@ library = []
 [dependencies]
 cw-utils = { version = "0.13" }
 cw2 = { version = "0.13" }
-cosmwasm-std = { version = "1.0.0-rc" }
+cosmwasm-std = { version = "1" }
 cw-storage-plus = { version = "0.13" }
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
@@ -24,7 +24,7 @@ hex = "0.4"
 sha2 = "0.10"
 
 [dev-dependencies]
-cosmwasm-schema = { version = "1.0.0-rc" }
+cosmwasm-schema = { version = "1" }
 cosmrs = { version = "0.7", features = ["cosmwasm", "rpc", "bip32"] }
 cosmos-sdk-proto = { version = "0.12", features = ["grpc"] }
 tendermint = { version = "=0.23" }
